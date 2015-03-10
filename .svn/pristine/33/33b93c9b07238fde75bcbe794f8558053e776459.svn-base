@@ -1,0 +1,219 @@
+/**
+ * ͨ����̵߳ķ�ʽץȡ�û����
+ */
+package com.weibo.repost;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import net.sf.json.util.JSONTokener;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.params.ClientPNames;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.cookie.Cookie;
+import org.apache.http.cookie.CookieOrigin;
+import org.apache.http.cookie.CookieSpec;
+import org.apache.http.cookie.CookieSpecFactory;
+import org.apache.http.cookie.MalformedCookieException;
+import org.apache.http.impl.client.AbstractHttpClient;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.PoolingClientConnectionManager;
+import org.apache.http.impl.cookie.BrowserCompatSpec;
+import org.apache.http.params.HttpParams;
+
+import com.weibo.common.FileProcess;
+import com.weibo.common.WeiboUser;
+import com.weibo.login.Login;
+
+
+/**
+ * @author Jeffee
+ * 
+ */
+public class MultiThreadComments {
+	private String baseDir;
+	private HttpClient httpClient;
+	
+	public MultiThreadComments(HttpClient client, String uid){
+		httpClient = client;
+		this.baseDir = "E:\\Sina\\spams\\adidas\\"+uid+"\\"+uid+"-comment";
+		File dir = new File(baseDir);
+		if(!dir.exists()||!dir.isDirectory()){
+			dir.mkdirs();
+		}
+		dir = new File(baseDir+"\\userList");
+		if(!dir.exists()||!dir.isDirectory()){
+			dir.mkdirs();
+		}
+	}
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		Login login = new Login();
+		HttpClient client = login.login("jeffee@sina.cn", "ruoshui3");
+		
+		MultiThreadComments re = new MultiThreadComments(client,"3275897871");
+		String url = "http://weibo.com/3275897871/zuyfHDs4Q?type=comment";
+				//http://weibo.com/3275896625/zuyijj4gf?type=comment";
+				//"http://weibo.com/3275896465/zuykgsAVX?type=comment";
+				//"http://weibo.com/3275896461/zuykW7FU7?type=comment";
+				//"http://weibo.com/3275903821/zupkKE5KT?type=comment";
+				//"http://weibo.com/3275901585/zupwqkiKp?type=comment";
+				//"http://weibo.com/3275901745/zuptKxk3a?type=comment";
+				//"http://weibo.com/3275901745/zuptKxk3a?type=repost";
+				//"http://weibo.com/2865044350/zucN0urs2?type=repost"; 
+				//"http://weibo.com/3275903821/zupkKE5KT?type=repost";
+				//"http://weibo.com/3255649534/zqOiy3i5v?type=repost";
+				//"http://e.weibo.com/3169075640/zs8qfbYos?type=repost";
+				//"http://weibo.com/1197161814/zpWeNc375?type=repost";
+		re.getAll(url);
+		re.flushResult();
+	}
+
+	/**
+	 * 
+	 * @param httpClient
+	 * @param startUrl
+	 * @throws InterruptedException
+	 */
+	public void getUsers(String page)
+			throws InterruptedException
+	{
+		HttpGet get = null;
+		ThreadPoolExecutor threadPool = new ThreadPoolExecutor(100, 500, 3,
+			TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(10000),
+			new ThreadPoolExecutor.DiscardOldestPolicy());
+		
+		Pattern pattern = Pattern.compile("comment_list S_line1.*?usercard=\\\\\"id=(\\d*)");
+		Matcher matcher = pattern.matcher(page);
+		while(matcher.find()){
+			String uid = matcher.group(1);
+			String url = "http://weibo.com/aj/user/cardv5?_wv=5&type=1&mark=&id="
+					+ uid + "&_t=0";
+			get = new HttpGet(url);
+			threadPool.execute(new UserThread(httpClient, get, uid));
+		}
+
+		while (true) {
+			Thread.sleep(10);
+			if (threadPool.getActiveCount() == 0) {
+				threadPool.shutdown();
+				break;
+			}
+		}
+	}
+	
+	public void getAll(String url){
+		HttpGet get = new HttpGet(url);
+		try {
+			HttpResponse response = httpClient.execute(get);
+			HttpEntity entity = response.getEntity();
+			BufferedReader br = new BufferedReader(new InputStreamReader(entity.getContent(), "utf8"));
+			String line = br.readLine();
+			
+			while(line!=null){
+				if(line.startsWith("<script>STK && STK.pageletM && STK.pageletM.view({\"pid\":\"pl_content_weiboDetail\"")){
+					get.abort();
+					int index = line.indexOf("\"html\":");
+					line = line.substring(index+8, line.length()-14);
+					int pageNum=1;
+					FileProcess.write(baseDir+"\\"+pageNum, line);
+					getUsers(line);
+					
+					String str = line.substring(line.lastIndexOf("commentFilter"));
+					Pattern pattern = Pattern
+							.compile("action-data=\\\\\"(id=\\d*?&max_id=\\d*?&page=)(\\d*)");
+					Matcher matcher = pattern.matcher(str);
+					String info = "";
+					int pageCount = 0;
+					while (matcher.find()){
+						int count = Integer.parseInt(matcher.group(2));
+						if(count>pageCount)
+							pageCount = count;
+						else
+							info = matcher.group(1);
+					}
+					System.out.println(pageCount);
+					while(pageNum<pageCount){
+						pageNum +=1;
+						//String newUrl = "http://e.weibo.com/aj/mblog/info/big?"+info+pageNum;
+						String newUrl = "http://weibo.com/aj/comment/big?_wv=5&"+info+pageNum;
+						getJasonPage(newUrl,pageNum);
+					}
+					//&page=2&_t=0&__rnd=1367751668152
+					break;
+				}
+				line = br.readLine();	
+			}
+			br.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		//write(baseDir+"\\userList.txt");
+ catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	public void getJasonPage(String url, int pageNum){
+		System.out.println("GET PAge^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+		HttpGet get = new HttpGet(url);
+		try {
+			HttpResponse response = httpClient.execute(get);
+			HttpEntity entity = response.getEntity();
+			BufferedReader br = new BufferedReader(new InputStreamReader(entity.getContent(), "utf8"));		
+			String line = br.readLine();
+			get.abort();
+			br.close();
+			
+			line = new JSONTokener(line).nextValue().toString();
+			getUsers(line); 
+			FileProcess.write(baseDir+"\\"+pageNum, line);
+		} catch (IOException e) {
+				// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	public void flushResult()
+ {
+		FileWriter fWriter;
+		try {
+			String fileName = baseDir + "\\userList\\userlist.txt";
+			fWriter = new FileWriter(new File(fileName));
+			for (int i = 0; i < WeiboUser.userList.size(); i++) {
+				WeiboUser user = WeiboUser.userList.get(i);
+				fWriter.write(user.getUid() + ";" + user.getFollowCount() + ";"
+						+ user.getFanCount() + ";" + user.getPostCount());
+				fWriter.write("\r\n");
+			}
+			fWriter.close();
+			WeiboUser.userList.clear();
+			System.out.println(fileName + " finished");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+}

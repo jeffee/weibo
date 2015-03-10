@@ -1,0 +1,47 @@
+/**
+ * 抓取用户的关注列表
+ */
+package com.weibo.crawl;
+
+import org.apache.http.client.HttpClient;
+
+import com.weibo.common.PageGet;
+
+/**
+ * @author CHEN Kan
+ * @date 2013年9月24日
+ ***/
+
+public class FollowerCrawl {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		FileProcess f;
+
+	}
+
+	private HttpClient client;
+
+	public FollowerCrawl(HttpClient client){
+		this.client = client;
+	}
+	private String getPageID(String uid) {
+		String url = "http://weibo.com/" + uid;
+		String info = PageGet.getStartLine(client, url, "$CONFIG['page_id']");
+		int sIndex = info.indexOf("=") + 2;
+		int eIndex = info.lastIndexOf("'");
+		return info.substring(sIndex, eIndex);
+	}
+
+	public void crawl(String uid) {
+		String pageID = getPageID(uid);
+		String url = "http://weibo.com/p/"+pageID+"/follow";
+		String line = PageGet.getStartLine(client, url, "<script>FM.view({\"ns\":\"pl.content.followTab.index");
+		line = line.substring(0, line.lastIndexOf("Pl_Official_LeftHisRelation"));
+		int index = line.lastIndexOf("page=");
+		line = line.substring(index+5);
+		line = line.substring(0,line.indexOf("#"));
+	}
+}

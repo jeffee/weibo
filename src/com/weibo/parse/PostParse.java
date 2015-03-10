@@ -1,0 +1,188 @@
+/**
+ * 对微博进行解析
+ * 将微博存储在List
+ */
+package com.weibo.parse;
+
+import java.io.File;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.htmlparser.Node;
+import org.htmlparser.NodeFilter;
+import org.htmlparser.Parser;
+import org.htmlparser.filters.AndFilter;
+import org.htmlparser.filters.HasAttributeFilter;
+import org.htmlparser.filters.OrFilter;
+import org.htmlparser.filters.TagNameFilter;
+import org.htmlparser.lexer.Lexer;
+import org.htmlparser.lexer.Page;
+import org.htmlparser.util.DefaultParserFeedback;
+import org.htmlparser.util.NodeList;
+import org.htmlparser.util.ParserException;
+
+import com.weibo.common.FileProcess;
+import com.weibo.common.Post;
+
+/**
+ * @author CHEN Kan
+ * @date 2013年9月10日
+ ***/
+
+public class PostParse {
+
+	public static void main(String[] args) {
+		String info = FileProcess.readLine(new File("E:\\temp\\weibo\\1005053545286555\\info-2-1"));
+		long sTime = System.currentTimeMillis();
+		List<Post> list = new LinkedList<Post>();
+		list = PostParse.parse(info);
+		for(Post post:list){
+			post.show();
+		}
+		long eTime = System.currentTimeMillis();
+		System.out.println((eTime-sTime));
+	}
+
+	private static Post tmpPost;
+	
+	public static List<Post> parse(String info) {
+		List<Post>list = new LinkedList<Post>();
+		int index = info.indexOf("html")+7;
+		info = info.substring(index,info.lastIndexOf("\""));
+		info = info.replaceAll("\\\\n", "").replaceAll("\\\\t", "").replaceAll("\\\\", "");
+		
+		Lexer mLexer = new Lexer(new Page(info));
+		Parser parser = new Parser(mLexer, new DefaultParserFeedback(
+				DefaultParserFeedback.QUIET));
+
+		NodeFilter divFilter = new TagNameFilter("div");
+		NodeFilter[] filters = { new HasAttributeFilter("class", "WB_text"),
+				new HasAttributeFilter("class", "WB_handle"),
+				new HasAttributeFilter("class", "WB_from") };
+
+		NodeFilter filter = new OrFilter(filters);
+		filter = new AndFilter(divFilter, filter);
+
+		try {
+			NodeList nodes = parser.extractAllNodesThatMatch(filter);
+			handleInfos(nodes, list);
+		} catch (ParserException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return list;
+	}
+	
+	/**
+	 * 处理微博内容，需要判断是原创或转发
+	 * 原创微博3个node一组，转发微博6个node一组
+	 * WB_text：内容
+	 * WB_text：原微博内容
+	 * WB_handle：原微博的赞、转发、收藏、评论; 链接，mid，用户信息
+	 * WB_from：原微博的来源和时间
+	 * WB_handle：赞、转发、收藏、评论; 链接，mid，用户信息
+	 * WB_from：来源和时间
+	 * 
+	 * 以是否含有“WB_text”后一个node为“WB_text”还是“WB_handle”为判断依据
+	 * **/
+	private static void handleInfos(NodeList nodes, List<Post>list){
+		for (int i = 0; i < nodes.size(); ) {
+			Node contNode = (Node) nodes.elementAt(i);
+			Node curNode = nodes.elementAt(i+1);
+			if(curNode.toHtml().indexOf("WB_text")==-1){	//说明是原创微博
+				Post post = handlePost(0,contNode,curNode,nodes.elementAt(i+2));
+				list.add(post);
+				i+=3;
+			}else{										//说明是转发微博
+				Post oriPost = handlePost(1,curNode,nodes.elementAt(i+2),nodes.elementAt(i+3));
+				Post rePost = handlePost(2,contNode,nodes.elementAt(i+4),nodes.elementAt(i+5));
+				oriPost.setMid(rePost.getRootMid());
+				oriPost.setUserName(tmpPost.getUserName());
+				oriPost.setUid(tmpPost.getUid());
+				oriPost.setHref(tmpPost.getHref());
+				tmpPost = null;
+				i+=6;
+				list.add(oriPost);
+				list.add(rePost);
+			}
+		}
+	}
+	
+	/***
+	 * @function 处理微博
+	 * @param type: 0:原创微博；1：转发微博中的源微博：2：转发微博中的当前微博
+	 * @param contentNode: WB_text:内容
+	 * @param handleNode: WB_handle：赞、转发、收藏、评论; 链接，mid，用户信息
+	 * @param fromNode: WB_from：来源和时间
+	 * **/
+	private static Post handlePost(int type, Node contentNode,Node handleNode,Node fromNode){
+		Post post = new Post();
+		if(contentNode.toHtml().indexOf("WB_text")==-1||handleNode.toHtml().indexOf("WB_handle")==-1||fromNode.toHtml().indexOf("WB_from")==-1)
+			return null;
+		post.setContent(contentNode.toPlainTextString().trim());
+		String[] counts = handleNode.toPlainTextString().trim().split("\\|");
+		
+		if(type!=1){			//原创微博或转发微博
+			post.setRepostCount(getCount(counts[1]));
+			post.setFavorCount(getCount(counts[2]));
+			post.setCommentCount(getCount(counts[3]));
+			
+		}else {			//转发微博中的源微博
+			post.setOri(1);
+			post.setRepostCount(getCount(counts[1]));
+			post.setCommentCount(getCount(counts[2]));
+		}
+		Pattern pattern;
+		Matcher matcher;
+		if (type == 0) {
+			post.setOri(1);
+			pattern = Pattern
+					.compile("url=(.*?)&mid=(\\d*)&name=(.*?)&uid=(\\d*)&");
+			matcher = pattern.matcher(handleNode.toHtml());
+			if (matcher.find()) {
+				post.setHref(matcher.group(1));
+				post.setMid(matcher.group(2));
+				post.setUserName(matcher.group(3));
+				post.setUid(matcher.group(4));
+			}
+		} else if (type == 2) {
+			post.setOri(0);
+			tmpPost = new Post();
+			pattern = Pattern
+					.compile("rootmid=(\\d*)&rootname=(.*?)&rootuid=(\\d*)&rooturl=(.*?)&url=(.*?)&mid=(\\d*)&name=(.*?)&uid=(\\d*)&");
+			matcher = pattern.matcher(handleNode.toHtml());
+			if (matcher.find()) {
+				post.setRootMid(matcher.group(1));
+				tmpPost.setUserName(matcher.group(2));
+				tmpPost.setUid(matcher.group(3));
+				tmpPost.setHref(matcher.group(4));
+				post.setHref(matcher.group(5));
+				post.setMid(matcher.group(6));
+				post.setUserName(matcher.group(7));
+				post.setUid(matcher.group(8));
+			}
+		}
+		
+		pattern = Pattern.compile("title=\"(.*?)\".*/?nofollow\">(.*?)<");
+		matcher = pattern.matcher(fromNode.toHtml());
+		if(matcher.find()){
+			post.setDate(matcher.group(1));
+			post.setFrom(matcher.group(2));
+		}
+		return post;
+	}
+
+	
+	/**将带括弧的字符串中的数字提取出来**/
+	private static Integer getCount(String str){
+		int start=str.indexOf("(")+1;
+		int end=str.lastIndexOf(")");
+		try{
+			return Integer.parseInt(str.substring(start,end));
+		}catch(Exception ex){
+			return 0;
+		}
+	}
+}

@@ -1,0 +1,83 @@
+/**
+ * 抓取用户的所有微博
+ */
+package com.weibo.crawl;
+
+import java.io.File;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.http.client.HttpClient;
+
+import com.weibo.common.FileProcess;
+import com.weibo.common.PageGet;
+import com.weibo.login.Login;
+
+/**
+ * @author CHEN Kan
+ * @date 2013年9月23日
+ ***/
+
+public class AllPosts {
+
+	public static void main(String[] args) {
+		HttpClient client = Login.login();
+		AllPosts all = new AllPosts(client);
+		File sFile = new File("E:\\Sina\\spams\\spammers2.csv");
+		List<String> list = FileProcess.read(sFile);
+		for(String uid:list){
+			all.crawl(uid);
+			System.out.println(uid +" has finished!");
+		}
+	
+		FileProcess.write("E:\\Sina\\spams\\id2.sn", all.idMap);
+	}
+
+	private List<String> idMap;
+	private String uid;
+	private String pageID;
+	private int pageCount;
+	private HttpClient client;
+	public AllPosts(HttpClient client){
+		this.client = client;
+		idMap= new LinkedList<String>();
+	}
+	
+	public void crawl(String userID){
+		uid = userID;
+		preSet();
+		PostCrawl all = new PostCrawl(client, pageID);
+		if(all.checkDir())
+			all.getAllPosts(pageCount);
+	}
+
+	/***根据用户id设置参数**/
+	private void preSet(){
+		String url = "http://weibo.com/"+uid;
+		List<String> list = PageGet.getPage(client, url);
+		for(String info:list){
+			if(info.startsWith("$CONFIG['page_id']")){
+				int sIndex = info.indexOf("=")+2;
+				int eIndex = info.lastIndexOf("'");
+				pageID = info.substring(sIndex, eIndex);
+				idMap.add(uid+","+ pageID);
+			}
+			else if(info.startsWith("<script>FM.view({\"ns\":\"pl.header.head.index")){
+				info = info.replaceAll("\\\\", "");
+				Pattern pattern = Pattern.compile("=\"weibo\">(\\d*)<");
+				Matcher matcher = pattern.matcher(info);
+				if(matcher.find()){
+					int count = Integer.parseInt(matcher.group(1));
+					pageCount = count/45;
+					if(count%20!=0)
+						pageCount++;
+					if(pageCount>3)
+						pageCount=3;
+					//System.out.println(pageCount);
+				}
+			}
+		}
+	}
+}

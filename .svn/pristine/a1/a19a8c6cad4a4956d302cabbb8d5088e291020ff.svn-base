@@ -1,0 +1,203 @@
+/**
+ * 通过多线程的方式抓取用户数据
+ */
+package com.weibo.repost;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import net.sf.json.util.JSONTokener;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+
+import com.weibo.common.FileProcess;
+import com.weibo.login.Login;
+
+/**
+ * @author Jeffee
+ * 
+ */
+public class MultiThreadReposts {
+	private String baseDir;
+	private HttpClient httpClient;
+	
+	public MultiThreadReposts(HttpClient client, String baseDir){
+		httpClient = client;
+		this.baseDir = baseDir;
+		File dir = new File(baseDir);
+		if(!dir.exists()||!dir.isDirectory()){
+			dir.mkdirs();
+		}
+	}
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		long startTime = System.currentTimeMillis();
+		HttpClient client = Login.login("social_ck@sina.com", "jeffee");
+		
+		String dir = "E:\\Sina\\test";
+		MultiThreadReposts re = new MultiThreadReposts(client, dir);
+		String url = "http://weibo.com/3545286555/A84AXFVUQ";
+				//"http://weibo.com/3275897871/zuyfHDs4Q";
+				//"http://weibo.com/1877523651/zvVjYbQR7?type=repost";
+				//"http://weibo.com/3275897871/zuyfHDs4Q?type=repost";
+				//"http://weibo.com/3275896625/zuyijj4gf?type=repost";
+				//"http://weibo.com/3275896465/zuykgsAVX?type=repost";
+				//"http://weibo.com/3275896461/zuykW7FU7?type=repost";
+				//"http://weibo.com/3275901585/zupwqkiKp?type=repost";
+				//"http://weibo.com/3275901745/zuptKxk3a?type=comment";
+				//"http://weibo.com/3275901745/zuptKxk3a?type=repost";
+				//"http://weibo.com/2865044350/zucN0urs2?type=repost"; 
+				//"http://weibo.com/3275903821/zupkKE5KT?type=repost";
+				//"http://weibo.com/3255649534/zqOiy3i5v?type=repost";
+				//"http://e.weibo.com/3169075640/zs8qfbYos?type=repost";
+				//"http://weibo.com/1197161814/zpWeNc375?type=repost";
+		re.getAll(url);
+		long endTime = System.currentTimeMillis();
+		System.out.println("all:" +(endTime-startTime));
+	}
+
+	/**
+	 * 
+	 * @param httpClient
+	 * @param startUrl
+	 * @throws InterruptedException
+	 */
+	public void getUsers(String page)
+			throws InterruptedException
+	{
+		long startTime = System.currentTimeMillis();
+		HttpGet get = null;
+		
+		List<UserThread> threadList = new LinkedList<UserThread>();
+		Pattern pattern = Pattern.compile("nick-name=.*?usercard=\\\\\"id=(\\d*)");
+		Matcher matcher = pattern.matcher(page);
+		while(matcher.find()){
+			String uid = matcher.group(1);
+			String url = "http://weibo.com/aj/user/cardv5?_wv=5&type=1&mark=&id="
+					+ uid + "&_t=0";
+			get = new HttpGet(url);
+			threadList.add(new UserThread(httpClient, get, uid));
+		}
+
+		  // start the threads
+        for (int j = 0; j < threadList.size(); j++) {
+            threadList.get(j).run();
+        }
+
+        // join the threads
+        for (int j = 0; j < threadList.size(); j++) {
+        	threadList.get(j).join();
+        }
+        
+		long endTime = System.currentTimeMillis();
+		System.out.println("Get all users in page:" + (endTime-startTime));
+	}
+	
+	public void getAll(String oUrl){
+		String url = oUrl.replaceAll("\\\\", "/")+"?type=repost";
+		HttpGet get = new HttpGet(url);
+		try {
+			HttpResponse response = httpClient.execute(get);
+			HttpEntity entity = response.getEntity();
+			BufferedReader br = new BufferedReader(new InputStreamReader(entity.getContent(), "utf8"));
+			String line = br.readLine();
+			
+			while(line!=null){
+				//System.out.println(line);
+				if(line.startsWith("<script>FM.view({\"ns\":\"pl.content.weiboDetail") || line.startsWith("<script>STK && STK.pageletM && STK.pageletM.view({\"pid\":\"pl_content_weiboDetail")){
+					get.abort();
+					/*int index = line.indexOf("\"html\":");
+					line = line.substring(index+8, line.length()-14);*/
+
+					line = line.substring(line.indexOf("{"), line.lastIndexOf("}")+1);
+					line = new JSONTokener(line).nextValue().toString();
+					int pageNum=1;
+					FileProcess.write(baseDir+"\\"+pageNum, line);
+					int index = line.lastIndexOf("allowForward");
+					if(index==-1)
+						break;
+					String str = line.substring(index);
+					Pattern pattern = Pattern
+							.compile("action-data=\\\\\"(id=\\d*?&max_id=\\d*?&page=)(\\d*)");
+					Matcher matcher = pattern.matcher(str);
+					String info = "";
+					int pageCount = 0;
+					while (matcher.find()){
+						int count = Integer.parseInt(matcher.group(2));
+						if(count>pageCount)
+							pageCount = count;
+						else
+							info = matcher.group(1);
+					}
+					System.out.println(pageCount);
+					while(pageNum<pageCount){
+						pageNum +=1;
+						url = "http://e.weibo.com/aj/mblog/info/big?"+info+pageNum;
+						getJasonPage(url,pageNum);
+					}
+					break;
+				}
+				line = br.readLine();	
+			}
+			br.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+	public void getJasonPage(String url, int pageNum){
+		if(pageNum%20==0)
+			System.out.println("GET 20 PAges ^^^^^^^^^^^^^^^^^^^^^^^^^^^");
+		HttpGet get = new HttpGet(url);
+		try {
+			HttpResponse response = httpClient.execute(get);
+			HttpEntity entity = response.getEntity();
+			BufferedReader br = new BufferedReader(new InputStreamReader(entity.getContent(), "utf8"));		
+			String line = br.readLine();
+			get.abort();
+			br.close();
+			
+			line = new JSONTokener(line).nextValue().toString();
+		//	getUsers(line); 
+			FileProcess.write(baseDir+"\\"+pageNum, line);
+		} catch (IOException e) {
+				// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+	}
+	
+	/*public void flushResult()
+ {
+		FileWriter fWriter;
+		try {
+			String fileName = baseDir + "\\userlist.txt";
+		
+			fWriter = new FileWriter(new File(fileName));
+			for (int i = 0; i < WeiboUser.userList.size(); i++) {
+				WeiboUser user = WeiboUser.userList.get(i);
+				fWriter.write(user.getUid() + ";" + user.getFollowCount() + ";"
+						+ user.getFanCount() + ";" + user.getPostCount());
+				fWriter.write("\r\n");
+			}
+			fWriter.close();
+			WeiboUser.userList.clear();
+			System.out.println(fileName + " finished");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}*/
+}

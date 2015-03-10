@@ -1,0 +1,20 @@
+/**
+ * 抓取用户的关注列表
+ */
+package com.weibo.crawl;
+/**
+ * @author CHEN Kan
+ * @date 2013年9月24日
+ ***/
+
+public class FollowerCrawl {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+
+}

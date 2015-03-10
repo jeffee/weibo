@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/httpcomponents-client-4.2.5/lib/commons-codec-1.6.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/httpcomponents-client-4.2.5/lib/commons-logging-1.1.1.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/httpcomponents-client-4.2.5/lib/fluent-hc-4.2.5.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/httpcomponents-client-4.2.5/lib/httpclient-4.2.5.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/httpcomponents-client-4.2.5/lib/httpclient-cache-4.2.5.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/httpcomponents-client-4.2.5/lib/httpcore-4.2.4.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/httpcomponents-client-4.2.5/lib/httpmime-4.2.5.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/commons-beanutils-1.7.0.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/commons-fileupload-1.2.1.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/commons-io-1.4.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/ezmorph-0.9.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/ghost4j-0.3.1.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/jdom.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/jna.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/json-lib-0.9.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/jsoup-1.6.1-javadoc.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/jsoup-1.6.1-sources.jar"/>
+	<classpathentry kind="lib" path="/Weibo/WebRoot/WEB-INF/lib/jsoup-1.6.1.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/mysql-connector-java-5.1.25-bin.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/HTMLParser-2.0-SNAPSHOT/lib/filterbuilder.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/HTMLParser-2.0-SNAPSHOT/lib/htmllexer.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/HTMLParser-2.0-SNAPSHOT/lib/htmlparser.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/HTMLParser-2.0-SNAPSHOT/lib/sitecapturer.jar"/>
+	<classpathentry kind="lib" path="E:/Dropbox/Workspace/Reference libraries/HTMLParser-2.0-SNAPSHOT/lib/thumbelina.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

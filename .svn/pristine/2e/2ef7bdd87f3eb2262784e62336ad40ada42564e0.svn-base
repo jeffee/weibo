@@ -1,0 +1,42 @@
+/**
+ * 
+ */
+package com.weibo.post;
+
+import java.io.File;
+import java.util.List;
+
+import org.apache.http.client.HttpClient;
+
+import com.weibo.common.FileProcess;
+import com.weibo.login.Login;
+import com.weibo.repost.MultiThreadReposts;
+
+/**
+ * @author CHEN Kan
+ * @date 2013年8月29日
+ ***/
+
+public class GetAllPropagation {
+
+	/**
+	 * @param args
+	 */
+	public static void main(String[] args) {
+		String pageID = "1005053318083881";
+		String baseDir = "E:\\Sina\\weibo\\" + pageID;
+		HttpClient client = Login.login();
+		File sFile = new File(baseDir + "\\allPosts");
+		List<String> list = FileProcess.read(sFile);
+		for (int i = 0; i < list.size(); i++) {
+			String url = list.get(i).trim();
+			String dir = baseDir + "\\" + url.substring(url.length() - 6);
+
+			if (FileProcess.checkDir(dir) == false) {
+				MultiThreadReposts re = new MultiThreadReposts(client, dir);
+				re.getAll(url);
+			}
+
+		}
+	}
+}

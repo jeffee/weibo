@@ -1,0 +1,29 @@
+/**
+ * 抓取用户的所有微博
+ */
+package com.weibo.crawl;
+
+import org.apache.http.client.HttpClient;
+
+/**
+ * @author CHEN Kan
+ * @date 2013年9月23日
+ ***/
+
+public class AllPosts {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+
+	}
+
+	private String uid;
+	private String pageID;
+	private int pageCount;
+	private HttpClient client;
+	
+	/***根据用户id设置参数**/
+	private void preCrawl(String uid){
+		String 
+	}
+}

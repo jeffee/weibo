@@ -1,0 +1,73 @@
+/**
+ * 
+ */
+package com.weibo.repost;
+
+import java.io.File;
+import java.util.List;
+
+import org.apache.http.client.HttpClient;
+
+import com.weibo.common.FileProcess;
+import com.weibo.login.Login;
+
+/**
+ * @author CHEN Kan
+ * @date 2013年8月30日
+ ***/
+
+public class GetFromFile {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		HttpClient client = Login.login();
+	/*	List<String> list = FileProcess.read(new File("E:\\Sina\\weibo\\id.txt"));
+		for(String info:list){
+			String dir =  "E:\\Sina\\weibo\\"+info.trim();
+			File sFile = new File("E:\\Sina\\weibo\\"+info.trim()+"\\infos");
+			GetFromFile get = new GetFromFile(client, dir);
+			get.getByInfos(sFile);
+		}*/
+		String dir =  "E:\\Sina\\spams";
+		File sFile = new File("E:\\Sina\\spams\\0922");
+		GetFromFile get = new GetFromFile(client, dir);
+		get.getByUrl(sFile);
+	}
+
+	private HttpClient client;
+	private String baseDir;
+	
+	public GetFromFile(HttpClient client, String baseDir){
+		this.client = client;
+		this.baseDir = baseDir;
+	}
+	public void getByUrl(File sFile){
+		List<String> list = FileProcess.read(sFile);
+		for(int i=0;i<list.size();i++){
+			String url = list.get(i);
+				String dir = baseDir+"\\"
+						+ url.substring(url.length() - 6);
+				if (FileProcess.checkDir(dir) == false) {
+					MultiThreadReposts re = new MultiThreadReposts(client, dir);
+					re.getAll(url);
+				}	
+		}
+	}
+	
+	public void getByInfos(File sFile){
+		List<String> list = FileProcess.read(sFile);
+		for(int i=0;i<list.size();i++){
+			String str = list.get(i);
+			String[] infos = str.split(" ");
+			if(Integer.parseInt(infos[2])>100){
+				String url = infos[5];
+				String dir = baseDir +"\\"
+						+ url.substring(url.length() - 6);
+				if (FileProcess.checkDir(dir) == false) {
+					MultiThreadReposts re = new MultiThreadReposts(client, dir);
+					re.getAll(url);
+				}
+			}
+		}
+	}
+}
